@@ -156,3 +156,4 @@ server.pid
 
 results/*
 fine_tuned_model/*
+storage/*
