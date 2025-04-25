@@ -4,14 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-transformers = "*"
-torch = "*"
-torchvision = "*"
-torchaudio = "*"
-sentencepiece = "*"
-protobuf = "*"
+mistralai = "*"
+python-decouple = "*"
 ipykernel = "*"
-datasets = "*"
+jupyter = "*"
 
 [dev-packages]
 
