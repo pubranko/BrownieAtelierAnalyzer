@@ -59,7 +59,7 @@ class MistralLargeLatest:
             messages (list[dict[str, str]]): LLMへ送信するチャットの履歴を含むメッセージを指定する。
         """
         # self.logger.info(f"chat_response_to_text 開始 \n prompt = {prompt}")
-        self.logger.info(f"chat_response_to_text 開始 prompt = {prompt[:10]}...")
+        self.logger.info(f"chat_response_to_text 開始")
         if messages:
             wk_messages: list = messages
         else:
