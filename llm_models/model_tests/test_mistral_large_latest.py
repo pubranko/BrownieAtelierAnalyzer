@@ -1,11 +1,10 @@
-# test_llama4_scout.py
+# test_mistral_large_latest.py
+
 import logging
 from dotenv import load_dotenv
-from openai import APIError
 from decouple import config
 
-# テスト対象クラスのインポート
-from BrownieAtelierAnalyzer.llm_models.open_router.meta_llama_4_scout import MetaLlama4Scout
+from BrownieAtelierAnalyzer.llm_models.mistral.mistral_large_latest import MistralLargeLatest
 
 def main() -> None:
     # ロギング設定
@@ -17,53 +16,55 @@ def main() -> None:
 
     try:
         # クラスの初期化
-        llama = MetaLlama4Scout(
+        mistral = MistralLargeLatest(
             logger=logger,
-            api_key=str(config("BROWNIE_ATELIER_ANALYZER__OPEN_ROUTER_API_KEY")),  # 実際のAPIキーに置き換え
-            model_name=str(config("BROWNIE_ATELIER_ANALYZER__OPEN_ROUTER_MODEL_NAME")), # "meta-llama/llama-4-scout:free",
+            api_key=str(config("BROWNIE_ATELIER_ANALYZER__MISTRAL_API_KEY")),
+            model_name=str(config("BROWNIE_ATELIER_ANALYZER__MISTRAL_MODEL_NAME"))
         )
 
         # 基本チャットテスト
-        llama.chat(
-            "量子コンピューティングを小学生でもわかるように説明してください",
-            temperature=0.5,
-            max_tokens=300
+        mistral.chat(
+            "量子コンピュータを小学生でも分かるように説明してください"
         )
-        
-        # レスポンス変換テスト
-        response_text = llama.chat_response_to_text()
+        response_text = mistral.chat_response_to_text()
         print("\n=== 基本レスポンス ===")
         print(response_text)
 
         # 使用量情報取得テスト
-        usage = llama.usage_info()
         print("\n=== トークン使用量 ===")
-        print(f"入力トークン: {usage['prompt_tokens']}")
-        print(f"出力トークン: {usage['completion_tokens']}")
-        print(f"合計トークン: {usage['total_tokens']}")
+        mistral.usage_info()  # ログに出力される
+
+        # モデル情報取得テスト
+        model_info = mistral.model_infomation()
+        print("\n=== モデル情報 ===")
+        for k, v in model_info.items():
+            print(f"{k}: {v}")
 
         # メッセージ履歴テスト
         messages = [
             {"role": "system", "content": "あなたは優秀な科学解説者です"},
             {"role": "user", "content": "量子もつれとは何ですか？"}
         ]
-        llama.chat(
-            prompt="",  # 空文字でもよい
+        mistral.chat(
+            prompt="",  # promptは空でもよい
             messages=messages
         )
         print("\n=== メッセージ履歴を使ったレスポンス ===")
-        print(llama.chat_response_to_text())
+        print(mistral.chat_response_to_text())
 
         # 異常系テスト（無効なモデル名）
         try:
-            invalid_llama = MetaLlama4Scout(
+            invalid_mistral = MistralLargeLatest(
                 logger=logger,
+                api_key=str(config("BROWNIE_ATELIER_ANALYZER__MISTRAL_API_KEY", default="")),
                 model_name="invalid-model-name"
             )
-            invalid_llama.chat("テストメッセージ")
-        except APIError as e:
+            invalid_mistral.chat("テストメッセージ")
             print("\n=== 異常系テスト結果 ===")
-            print(f"想定通りのエラーを検出: {e.message}")
+            print("エラーが発生しませんでした（想定外）")
+        except Exception as e:
+            print("\n=== 異常系テスト結果 ===")
+            print(f"想定通りのエラーを検出: {str(e)}")
 
     except Exception as e:
         logger.exception(f"テスト実行中にエラーが発生しました: {str(e)}")

@@ -3,14 +3,13 @@ from decouple import config
 from logging import Logger, LoggerAdapter
 from openai import OpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from BrownieAtelierAnalyzer.llm_models.base_model import BaseModel
 
-class MetaLlama4Scout:
+class MetaLlama4Scout(BaseModel):
     
-    model_name: str
-    logger: Union[Logger, LoggerAdapter]
-    
-    __api_key: str
+    model_name: str = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
     _client: OpenAI
+    _chat_response: ChatCompletion
 
     def __init__(
         self, 
@@ -56,7 +55,7 @@ class MetaLlama4Scout:
         prompt: str, 
         messages: Optional[list] = None,
         **kwargs
-    ) -> ChatCompletion:
+    ) -> None:
         """
         LLMとのチャットを実行
         
@@ -72,14 +71,14 @@ class MetaLlama4Scout:
         
         messages = messages or [{"role": "user", "content": prompt}]
         
-        return self._client.chat.completions.create(
+        self._chat_response = self._client.chat.completions.create(
             model=self.model_name,
             messages=messages,
             extra_body={"provider": {"require_parameters": True}},  # OpenRouter固有設定
             **kwargs
         )
-    
-    def chat_response_to_text(self, response: ChatCompletion) -> str:
+   
+    def chat_response_to_text(self) -> str:
         """
         チャットレスポンスをテキストに変換
         
@@ -89,12 +88,31 @@ class MetaLlama4Scout:
         Returns:
             str: 応答テキスト
         """
-        if response.choices:
-            message = cast(ChatCompletionMessage, response.choices[0].message)
+        
+        if self._chat_response.choices:
+            message = cast(ChatCompletionMessage, self._chat_response.choices[0].message)
             return message.content or ""
         return ""
 
-    def usage_info(self, response: ChatCompletion) -> dict:
+    def model_infometion(self) -> dict:
+        """
+        指定モデルの詳細情報をdict形式で取得
+
+        Returns:
+            dict: モデルに関する情報
+        """
+        model_obj = self._client.models.retrieve(self.model_name)
+        # Pydanticモデルの場合
+        if hasattr(model_obj, "model_dump"):
+            return model_obj.model_dump()
+        # 通常のPythonオブジェクトの場合
+        elif hasattr(model_obj, "__dict__"):
+            return dict(model_obj.__dict__)
+        # それ以外（dictに直接変換できる場合）
+        else:
+            return dict(model_obj)
+
+    def usage_info(self) -> dict:
         """
         トークン使用量情報を取得
         
@@ -104,10 +122,11 @@ class MetaLlama4Scout:
         Returns:
             dict: トークン使用量情報
         """
-        if response.usage:
+        
+        if self._chat_response.usage:
             return {
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens
+                "prompt_tokens": self._chat_response.usage.prompt_tokens,
+                "completion_tokens": self._chat_response.usage.completion_tokens,
+                "total_tokens": self._chat_response.usage.total_tokens
             }
         return {}

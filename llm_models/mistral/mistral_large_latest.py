@@ -6,6 +6,7 @@ from mistralai import Mistral
 from mistralai.models import ChatCompletionResponse, ChatCompletionChoice
 from mistralai.models.basemodelcard import BaseModelCard
 from mistralai.models.usageinfo import UsageInfo
+from BrownieAtelierAnalyzer.llm_models.base_model import BaseModel
 
 """
 apiドキュメント
@@ -17,14 +18,11 @@ api
 
 """
 
-class MistralLargeLatest:
+class MistralLargeLatest(BaseModel):
     
-    model_name: str
-    logger: Union[Logger, LoggerAdapter]
-    
-    __api_key:str
-    
-    _client:Mistral
+    model_name: str = "mistral-large-latest"
+    _client: Mistral
+    _chat_response: ChatCompletionResponse
 
     def __init__(self, logger: Union[Logger, LoggerAdapter], api_key: Optional[str] = None, model_name: Optional[str] = None) -> None:
         """
@@ -58,7 +56,6 @@ class MistralLargeLatest:
             prompt (str): LLMへ送信するチャットのテキストを指定する。messagesが指定されている場合は無視される。
             messages (list[dict[str, str]]): LLMへ送信するチャットの履歴を含むメッセージを指定する。
         """
-        # self.logger.info(f"chat_response_to_text 開始 \n prompt = {prompt}")
         self.logger.info(f"chat_response_to_text 開始")
         if messages:
             wk_messages: list = messages
@@ -67,31 +64,26 @@ class MistralLargeLatest:
                 {"role": "user", "content": prompt}
             ]
         
-        self.chat_response:ChatCompletionResponse = self._client.chat.complete(
+        self._chat_response = self._client.chat.complete(
             model=self.model_name,
             messages=wk_messages,
-            # messages=[
-            #     {"role": "user", "content": prompt}
-            # ],
-            # top_p
-            # max_tokens
-            # timeout_ms
         )
         
     def chat_response_to_text(self) -> str:
         """
         chat_responseの内容をテキストに変換する
         """
-        chat_response_choices: Optional[list[ChatCompletionChoice]] = self.chat_response.choices
+        chat_response_choices: Optional[list[ChatCompletionChoice]] = self._chat_response.choices
         if chat_response_choices:
             return str(chat_response_choices[0].message.content)
         else:
             return ""
     
-    def model_infomation(self) -> BaseModelCard:
-        """ 指定モデルの詳細情報を取得
+    def model_infomation(self) -> dict:
+        """
+        指定モデルの詳細情報をdict形式で取得
         Returns:
-            BaseModelCard: モデルに関する情報をプロパティで参照できます。
+            dict: モデルに関する情報
             （参考例）
             {
                 'id': 'mistral-large-2411', 'capabilities': ModelCapabilities(completion_chat=True, 
@@ -101,10 +93,18 @@ class MistralLargeLatest:
                 'aliases': ['mistral-large-latest'], 'deprecation': None, 'default_model_temperature': 0.7, 'TYPE': 'base'
             }
         """
-        _ = self._client.models.retrieve(model_id=self.model_name)  # 指定モデルの詳細情報を取得
-        return cast(BaseModelCard, self._client.models.retrieve(model_id=self.model_name))   # 型定義をBaseModelCardに変換
+        model_card = self._client.models.retrieve(model_id=self.model_name)
+        # Pydanticモデルの場合は .model_dump()、それ以外は __dict__ で対応
+        if hasattr(model_card, "model_dump"):
+            return model_card.model_dump()
+        elif hasattr(model_card, "__dict__"):
+            return dict(model_card.__dict__)
+        else:
+            # それ以外の場合は型変換を試みる
+            return dict(model_card)
+
 
     def usage_info(self) -> None:
         """ トークンの使用量情報をログへ出力する"""
-        usage = cast(UsageInfo, getattr(self.chat_response, "usage", None))
+        usage = cast(UsageInfo, getattr(self._chat_response, "usage", None))
         self.logger.info(f"プロンプト(入力 : 出力 : 合計)  {usage.prompt_tokens} : {usage.completion_tokens} : {usage.total_tokens}")   
